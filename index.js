@@ -64,3 +64,8 @@ client.login(DISCORD_TOKEN);
 
 // Launch express server
 require('./server');
+
+client.login(DISCORD_TOKEN);
+
+// Launch express server
+require('./server');
