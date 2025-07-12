@@ -4,34 +4,6 @@ const commandsHandler = require('./commandsHandler');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Process] Unhandled Rejection:', reason);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('[Process] Uncaught Exception:', err);
-});
-
-client.on('reconnecting', () => {
-  console.warn('[Discord] Client reconnecting...');
-});
-
-client.on('error', (err) => {
-  console.error('[Discord] Client error:', err);
-});
-
-client.on('shardDisconnect', (event, shardId) => {
-  console.warn(`[Discord] Shard ${shardId} disconnected:`, event?.reason || 'no reason');
-});
-
-client.on('shardReconnecting', (shardId) => {
-  console.log(`[Discord] Shard ${shardId} is reconnecting...`);
-});
-
-client.on('shardResume', (shardId, replayedEvents) => {
-  console.log(`[Discord] Shard ${shardId} resumed. Replayed events: ${replayedEvents}`);
-});
-
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
@@ -69,16 +41,26 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
+
   try {
     await commandsHandler.handleInteraction(interaction, client);
   } catch (err) {
     console.error('[Command] Error handling interaction:', err);
-    if (!interaction.replied) {
+    if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({ content: '⚠️ An error occurred.', ephemeral: true });
     }
   }
 });
 
+// Global error catchers
+process.on('unhandledRejection', (reason) => {
+  console.error('[UnhandledRejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[UncaughtException]', err);
+});
+
 client.login(DISCORD_TOKEN);
 
+// Launch express server
 require('./server');
