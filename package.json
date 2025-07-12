@@ -1,0 +1,15 @@
+{
+  "name": "fortnite-status-bot-v5",
+  "version": "1.0.0",
+  "description": "Simplified Fortnite Status Discord Bot v5",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.8",
+    "dayjs": "^1.11.10",
+    "discord.js": "^14.11.0",
+    "dotenv": "^17.2.0"
+  }
+}
