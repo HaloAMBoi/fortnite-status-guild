@@ -4,6 +4,34 @@ const commandsHandler = require('./commandsHandler');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Process] Unhandled Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Process] Uncaught Exception:', err);
+});
+
+client.on('reconnecting', () => {
+  console.warn('[Discord] Client reconnecting...');
+});
+
+client.on('error', (err) => {
+  console.error('[Discord] Client error:', err);
+});
+
+client.on('shardDisconnect', (event, shardId) => {
+  console.warn(`[Discord] Shard ${shardId} disconnected:`, event?.reason || 'no reason');
+});
+
+client.on('shardReconnecting', (shardId) => {
+  console.log(`[Discord] Shard ${shardId} is reconnecting...`);
+});
+
+client.on('shardResume', (shardId, replayedEvents) => {
+  console.log(`[Discord] Shard ${shardId} resumed. Replayed events: ${replayedEvents}`);
+});
+
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
