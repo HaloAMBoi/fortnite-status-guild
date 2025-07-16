@@ -24,21 +24,22 @@ module.exports = function startStatusMonitor(client) {
         if (postedIncidents.has(incident.id)) continue;
         postedIncidents.add(incident.id);
 
-        const impact = incident.impact || 'minor'; // fallback impact
-        const impactColor = colors[impact] || 0xffff00; // default yellow
+        const impact = incident.impact || 'minor';
+        const impactColor = colors[impact] || 0xffff00;
 
         const embed = new EmbedBuilder()
           .setTitle('Fortnite Servers Status – Issue')
-          .setDescription(incident.incident_updates[0]?.body || 'No description.')
           .addFields(
-            { name: 'Issue In', value: incident.name, inline: false },
-            { name: 'Impact Type', value: toTitleCase(impact), inline: false }
+            { name: 'Severity', value: toTitleCase(impact), inline: false },
+            { name: 'Issue', value: incident.name, inline: false },
+            { name: 'Description of issue from Epic', value: incident.incident_updates[0]?.body || 'No description.', inline: false }
           )
           .setColor(impactColor)
           .setFooter({ text: formatFooter() });
 
         for (const [guildId] of client.guilds.cache) {
           const channelId = await getChannelId(guildId);
+          if (!channelId) continue;
           const channel = client.channels.cache.get(channelId);
           if (channel) {
             await channel.send({ embeds: [embed] });
