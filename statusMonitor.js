@@ -4,42 +4,39 @@ const formatFooter = require('./utils/formatFooter');
 const toTitleCase = require('./utils/toTitleCase');
 const getChannelId = require('./utils/getChannelId');
 
-let postedIncidents = new Set();
+const sent = new Set();
 
-const colors = {
-  critical: 0xff0000,    // Red
-  major: 0xffa500,       // Orange
-  minor: 0xffff00,       // Yellow
-  maintenance: 0x0000ff, // Blue (optional)
-  none: 0x00ff00         // Green (optional)
-};
+function getColor(impact) {
+  switch (impact?.toLowerCase()) {
+    case 'critical': return 0xff0000; // 🔴 Red
+    case 'major': return 0xffa500;    // 🟠 Orange
+    case 'minor': return 0xffff00;    // 🟡 Yellow
+    default: return 0x00ff00;         // ✅ Green
+  }
+}
 
 module.exports = function startStatusMonitor(client) {
   setInterval(async () => {
     try {
       const res = await fetch('https://status.epicgames.com/api/v2/incidents/unresolved.json');
-      const data = await res.json();
+      const { incidents } = await res.json();
 
-      for (const incident of data.incidents) {
-        if (postedIncidents.has(incident.id)) continue;
-        postedIncidents.add(incident.id);
-
-        const impact = incident.impact || 'minor';
-        const impactColor = colors[impact] || 0xffff00;
+      for (const incident of incidents) {
+        if (sent.has(incident.id)) continue;
+        sent.add(incident.id);
 
         const embed = new EmbedBuilder()
           .setTitle('Fortnite Servers Status – Issue')
+          .setDescription(incident.incident_updates[0]?.body || 'No description provided.')
           .addFields(
-            { name: 'Severity', value: toTitleCase(impact), inline: false },
-            { name: 'Issue', value: incident.name, inline: false },
-            { name: 'Description of issue from Epic', value: incident.incident_updates[0]?.body || 'No description.', inline: false }
+            { name: '🛠️ Affected System', value: incident.name, inline: false },
+            { name: '📊 Impact Level', value: toTitleCase(incident.impact || 'unknown'), inline: false }
           )
-          .setColor(impactColor)
+          .setColor(getColor(incident.impact))
           .setFooter({ text: formatFooter() });
 
         for (const [guildId] of client.guilds.cache) {
           const channelId = await getChannelId(guildId);
-          if (!channelId) continue;
           const channel = client.channels.cache.get(channelId);
           if (channel) {
             await channel.send({ embeds: [embed] });
@@ -49,5 +46,5 @@ module.exports = function startStatusMonitor(client) {
     } catch (err) {
       console.error('[Monitor] Error while checking incidents:', err);
     }
-  }, 60_000);
+  }, 60000); // Every 60 seconds
 };
