@@ -1,35 +1,31 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
-const fs = require('node:fs');
-const path = require('node:path');
-const pingServer = require('./ping');
-const { startSelfPing } = require('./selfPing');
+const fs = require('fs');
+const path = require('path');
+const { Client, Collection, GatewayIntentBits } = require('discord.js');
+require('./ping'); // express ping server for Render
+require('./selfPing'); // optional — runs on load
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
 client.commands = new Collection();
 
-// Register commands
+// Load slash commands
 const commandsPath = path.join(__dirname, 'commands');
-for (const file of fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'))) {
-  const command = require(path.join(commandsPath, file));
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+  const command = require(`./commands/${file}`);
   client.commands.set(command.data.name, command);
 }
 
-// Register events
-const eventsPath = path.join(__dirname, 'events');
-for (const file of fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'))) {
-  const event = require(path.join(eventsPath, file));
-  if (event.once) client.once(event.name, (...args) => event.execute(...args, client));
-  else client.on(event.name, (...args) => event.execute(...args, client));
-}
+// Load event handlers
+client.on('interactionCreate', require('./events/interactionCreate'));
 
-// Start express + ping
-pingServer.listen(process.env.PORT || 3000, () => {
-  console.log(`[🌐] Ping server running on port ${process.env.PORT || 3000}`);
-  startSelfPing();
+const startStatusMonitor = require('./statusMonitor');
+
+client.once('ready', () => {
+  require('./events/ready')(client); // now valid
+  startStatusMonitor(client);
 });
 
-// Log in
-client.login(process.env.TOKEN)
-  .then(() => console.log(`[✅] Logged in as ${client.user.tag}`))
-  .catch(console.error);
+client.login(process.env.DISCORD_TOKEN);

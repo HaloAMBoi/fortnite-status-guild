@@ -1,40 +1,37 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const fetch = require('node-fetch');
-
-function getColor(status) {
-  if (status.includes('Major')) return 0xff0000; // red
-  if (status.includes('Degraded') || status.includes('Partial')) return 0xffff00; // yellow
-  return 0x00ff00; // green
-}
+const fetch = require('undici').fetch;
+const checkChannel = require('../utils/checkChannel');
+const formatFooter = require('../utils/formatFooter');
+const toTitleCase = require('../utils/toTitleCase');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('status')
-    .setDescription('Get current Fortnite server status'),
-
+    .setDescription('Check Fortnite and Epic Games system status'),
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    if (!(await checkChannel(interaction))) return;
 
     try {
-      const res = await fetch('https://status.epicgames.com/api/v2/status.json');
+      const res = await fetch('https://status.epicgames.com/api/v2/summary.json');
       const data = await res.json();
       const status = data.status.description;
-      const time = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Qatar' });
-
       const embed = new EmbedBuilder()
-        .setTitle('**Fortnite Status**')
-        .setDescription(`Status: ${status}`)
-        .setColor(getColor(status))
-        .setFooter({ text: time });
+        .setTitle('**Fortnite Servers Status**')
+        .setDescription(`Current Status: ${toTitleCase(status)}`)
+        .setColor(status === 'All Systems Operational' ? 0x00ff00 : 0xffff00)
+        .addFields(
+          data.components.slice(0, 25).map(comp => ({
+            name: comp.name,
+            value: toTitleCase(comp.status),
+            inline: true
+          }))
+        )
+        .setFooter({ text: formatFooter() });
 
-      if (status !== 'All Systems Operational') {
-        embed.addFields({ name: 'Issues', value: data.status.indicator });
-      }
-
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.reply({ embeds: [embed], flags: 64 });
     } catch (err) {
-      console.error('[ERROR] command status', err);
-      await interaction.editReply({ content: '❌ Failed to fetch server status.' });
+      console.error(err);
+      await interaction.reply({ content: '❌ Failed to fetch status.', flags: 64 });
     }
   }
 };
