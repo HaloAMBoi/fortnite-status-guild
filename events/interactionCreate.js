@@ -1,19 +1,8 @@
-const getChannelId = require('../utils/getChannelId');
-
 module.exports = async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
   const command = interaction.client.commands.get(interaction.commandName);
   if (!command) return;
-
-  const allowed = await getChannelId(interaction.guildId);
-
-  if (interaction.channelId !== allowed) {
-    return interaction.reply({
-      content: '❌ You can only use commands in the configured channel.',
-      flags: 64
-    });
-  }
 
   try {
     await command.execute(interaction);
@@ -22,7 +11,7 @@ module.exports = async (interaction) => {
 
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: '❌ Something went wrong while executing this command.',
+        content: '❌ There was an error executing that command.',
         flags: 64
       });
     }

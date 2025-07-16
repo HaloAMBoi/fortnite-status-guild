@@ -1,26 +1,14 @@
-const mysql = require('mysql2/promise');
-require('dotenv').config();
-
-const pool = mysql.createPool({
-  host: process.env.MYSQL_HOST,
-  user: process.env.MYSQL_USER,
-  password: process.env.MYSQL_PASSWORD,
-  database: process.env.MYSQL_DATABASE
-});
+const config = require('../config');
 
 module.exports = async function getChannelId(guildId) {
   if (process.env.USE_CONFIG === 'true') {
     try {
-      const [rows] = await pool.query(
-        'SELECT channel_id FROM fortnite_config WHERE guild_id = ?',
-        [guildId]
-      );
-      if (rows.length > 0) return rows[0].channel_id;
-    } catch (err) {
-      console.error('MySQL error in getChannelId:', err);
+      const id = await config.getChannel(guildId);
+      return id || process.env.FALLBACK_CHANNEL_ID;
+    } catch {
+      return process.env.FALLBACK_CHANNEL_ID;
     }
+  } else {
+    return process.env.FALLBACK_CHANNEL_ID;
   }
-
-  return process.env.FALLBACK_CHANNEL_ID?.trim();
 };
-
