@@ -7,12 +7,12 @@ module.exports = async (interaction) => {
   if (!command) return;
 
   const allowed = await getChannelId(interaction.guildId);
-
   const allowedArray = Array.isArray(allowed) ? allowed : [allowed];
+
   if (!allowedArray.includes(interaction.channelId)) {
     return interaction.reply({
       content: '❌ You can only use commands in the configured channel.',
-      flags: 64 // ephemeral
+      flags: 64
     });
   }
 
