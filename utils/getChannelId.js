@@ -21,13 +21,12 @@ module.exports = async function getChannelId(guildId) {
     }
   }
 
-  // Fallback: parse one or more comma-separated IDs
+  // fallback
   const fallback = process.env.FALLBACK_CHANNEL_ID;
   if (!fallback) return null;
 
-  if (fallback.includes(',')) {
-    return fallback.split(',').map(id => id.trim());
-  }
-
-  return fallback.trim();
+  return fallback.includes(',')
+    ? fallback.split(',').map(id => id.trim())
+    : fallback.trim();
 };
+
