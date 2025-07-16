@@ -1,14 +1,11 @@
-const config = require('../config');
+const channelIdOrIds = await getChannelId(guild.id);
 
-module.exports = async function getChannelId(guildId) {
-  if (process.env.USE_CONFIG === 'true') {
-    try {
-      const id = await config.getChannel(guildId);
-      return id || process.env.FALLBACK_CHANNEL_ID;
-    } catch {
-      return process.env.FALLBACK_CHANNEL_ID;
-    }
-  } else {
-    return process.env.FALLBACK_CHANNEL_ID;
+if (Array.isArray(channelIdOrIds)) {
+  for (const id of channelIdOrIds) {
+    const ch = client.channels.cache.get(id);
+    if (ch) await ch.send({ embeds: [embed] });
   }
-};
+} else {
+  const ch = client.channels.cache.get(channelIdOrIds);
+  if (ch) await ch.send({ embeds: [embed] });
+}
