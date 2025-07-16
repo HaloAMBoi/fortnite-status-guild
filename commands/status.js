@@ -1,14 +1,15 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fetch = require('undici').fetch;
+const checkChannel = require('../utils/checkChannel');
 const formatFooter = require('../utils/formatFooter');
 const toTitleCase = require('../utils/toTitleCase');
 
-function getColor(impact) {
+function getColorFromImpact(impact) {
   switch (impact?.toLowerCase()) {
-    case 'critical': return 0xff0000; // 🔴 red
-    case 'major': return 0xffa500;    // 🟠 orange
-    case 'minor': return 0xffff00;    // 🟡 yellow
-    default: return 0x00ff00;         // ✅ green
+    case 'critical': return 0xff0000;
+    case 'major': return 0xffa500;
+    case 'minor': return 0xffff00;
+    default: return 0x00ff00;
   }
 }
 
@@ -16,62 +17,53 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('status')
     .setDescription('Check Fortnite and Epic Games system status'),
+
   async execute(interaction) {
+    if (!(await checkChannel(interaction))) return;
+
+    await interaction.deferReply({ ephemeral: true });
+
     try {
-      const [summaryRes, incidentsRes] = await Promise.all([
+      const [summaryRes, statusRes] = await Promise.all([
         fetch('https://status.epicgames.com/api/v2/summary.json'),
-        fetch('https://status.epicgames.com/api/v2/incidents/unresolved.json'),
+        fetch('https://status.epicgames.com/api/v2/status.json')
       ]);
 
-      const summary = await summaryRes.json();
-      const incidentsData = await incidentsRes.json();
-      const components = summary.components.filter(c => c.status !== 'operational');
-      const incidents = incidentsData.incidents;
+      const summaryData = await summaryRes.json();
+      const statusData = await statusRes.json();
 
-      let embedColor = 0x00ff00; // green by default
+      const description = toTitleCase(statusData.status.description);
+      const impact = statusData.status.indicator;
 
-      if (incidents.length) {
-        // pick highest impact level from all incidents
-        const levels = incidents.map(i => i.impact);
-        if (levels.includes('critical')) embedColor = getColor('critical');
-        else if (levels.includes('major')) embedColor = getColor('major');
-        else if (levels.includes('minor')) embedColor = getColor('minor');
-      } else if (components.length) {
-        // fallback if no incidents but degraded systems exist
-        embedColor = 0xffff00;
-      }
+      const components = summaryData.components || [];
 
       const embed = new EmbedBuilder()
         .setTitle('**Fortnite Servers Status**')
-        .setColor(embedColor)
+        .setDescription(`Current Status: ${description}`)
+        .setColor(getColorFromImpact(impact))
         .setFooter({ text: formatFooter() });
 
-      if (incidents.length > 0) {
-        embed.setDescription(`⚠️ ${incidents.length} active incident${incidents.length > 1 ? 's' : ''} detected.`);
-        incidents.forEach(incident => {
-          embed.addFields({
-            name: `🛠️ ${incident.name}`,
-            value: toTitleCase(incident.impact) + ' • ' + (incident.incident_updates[0]?.body || 'No description'),
-            inline: false
-          });
-        });
-      } else if (components.length > 0) {
-        embed.setDescription(`Issues detected in ${components.length} system${components.length > 1 ? 's' : ''}.`);
+      if (components.length > 0) {
         embed.addFields(
           components.slice(0, 25).map(comp => ({
-            name: comp.name,
-            value: toTitleCase(comp.status),
+            name: comp.name.slice(0, 256),
+            value: toTitleCase(comp.status || 'Unknown'),
             inline: true
           }))
         );
       } else {
-        embed.setDescription('✅ All systems are operational.');
+        embed.addFields({ name: 'Components', value: 'No component data available.' });
       }
 
-      await interaction.reply({ embeds: [embed], flags: 64 });
+      await interaction.editReply({ embeds: [embed] });
+
     } catch (err) {
-      console.error(err);
-      await interaction.reply({ content: '❌ Failed to fetch Fortnite status.', flags: 64 });
+      console.error('[Status Command] Error:', err);
+      try {
+        await interaction.editReply({ content: '❌ Failed to fetch status data.' });
+      } catch {
+        // Ignore if interaction already acknowledged
+      }
     }
   }
 };
