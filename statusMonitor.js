@@ -1,23 +1,22 @@
 const { EmbedBuilder } = require('discord.js');
 const fetch = require('undici').fetch;
+const getChannelId = require('./utils/getChannelId');
 const toTitleCase = require('./utils/toTitleCase');
 const formatFooter = require('./utils/formatFooter');
-const getChannelId = require('./utils/getChannelId');
 
 let lastStatus = null;
 
 module.exports = function startStatusMonitor(client) {
   setInterval(async () => {
     try {
+      console.log('[Monitor] Checking Epic Games status...');
       const res = await fetch('https://status.epicgames.com/api/v2/summary.json');
       const data = await res.json();
 
       const currentStatus = data.status.description;
       if (currentStatus === lastStatus) return;
-
       lastStatus = currentStatus;
 
-      // Only alert if it's not "all systems operational"
       if (currentStatus.toLowerCase() === 'all systems operational') return;
 
       const embed = new EmbedBuilder()
@@ -36,18 +35,17 @@ module.exports = function startStatusMonitor(client) {
         .setFooter({ text: formatFooter() });
 
       for (const [guildId] of client.guilds.cache) {
-        const ids = await getChannelId(guildId);
-        const channelIds = Array.isArray(ids) ? ids : [ids];
+        const channelId = await getChannelId(guildId);
+        const channel = client.channels.cache.get(channelId);
 
-        for (const channelId of channelIds) {
-          const channel = client.channels.cache.get(channelId);
-          if (channel) {
-            await channel.send({ embeds: [embed] });
-          }
+        if (channel) {
+          await channel.send({ embeds: [embed] });
+        } else {
+          console.warn(`[Monitor] Could not find channel ${channelId} in guild ${guildId}`);
         }
       }
     } catch (err) {
       console.error('❌ Status monitor error:', err);
     }
-  }, 60_000); // every 60s
+  }, 60_000); // every 60 seconds
 };
