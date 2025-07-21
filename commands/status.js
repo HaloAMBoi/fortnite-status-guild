@@ -4,66 +4,34 @@ const checkChannel = require('../utils/checkChannel');
 const formatFooter = require('../utils/formatFooter');
 const toTitleCase = require('../utils/toTitleCase');
 
-function getColorFromImpact(impact) {
-  switch (impact?.toLowerCase()) {
-    case 'critical': return 0xff0000;
-    case 'major': return 0xffa500;
-    case 'minor': return 0xffff00;
-    default: return 0x00ff00;
-  }
-}
-
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('status')
     .setDescription('Check Fortnite and Epic Games system status'),
-
   async execute(interaction) {
     if (!(await checkChannel(interaction))) return;
 
-    await interaction.deferReply({ ephemeral: true });
-
     try {
-      const [summaryRes, statusRes] = await Promise.all([
-        fetch('https://status.epicgames.com/api/v2/summary.json'),
-        fetch('https://status.epicgames.com/api/v2/status.json')
-      ]);
-
-      const summaryData = await summaryRes.json();
-      const statusData = await statusRes.json();
-
-      const description = toTitleCase(statusData.status.description);
-      const impact = statusData.status.indicator;
-
-      const components = summaryData.components || [];
-
+      const res = await fetch('https://status.epicgames.com/api/v2/summary.json');
+      const data = await res.json();
+      const status = data.status.description;
       const embed = new EmbedBuilder()
         .setTitle('**Fortnite Servers Status**')
-        .setDescription(`Current Status: ${description}`)
-        .setColor(getColorFromImpact(impact))
-        .setFooter({ text: formatFooter() });
-
-      if (components.length > 0) {
-        embed.addFields(
-          components.slice(0, 25).map(comp => ({
-            name: comp.name.slice(0, 256),
-            value: toTitleCase(comp.status || 'Unknown'),
+        .setDescription(`Current Status: ${toTitleCase(status)}`)
+        .setColor(status === 'All Systems Operational' ? 0x00ff00 : 0xffff00)
+        .addFields(
+          data.components.slice(0, 25).map(comp => ({
+            name: comp.name,
+            value: toTitleCase(comp.status),
             inline: true
           }))
-        );
-      } else {
-        embed.addFields({ name: 'Components', value: 'No component data available.' });
-      }
+        )
+        .setFooter({ text: formatFooter() });
 
-      await interaction.editReply({ embeds: [embed] });
-
+      await interaction.reply({ embeds: [embed], flags: 64 });
     } catch (err) {
-      console.error('[Status Command] Error:', err);
-      try {
-        await interaction.editReply({ content: '❌ Failed to fetch status data.' });
-      } catch {
-        // Ignore if interaction already acknowledged
-      }
+      console.error(err);
+      await interaction.reply({ content: '❌ Failed to fetch status.', flags: 64 });
     }
   }
 };
