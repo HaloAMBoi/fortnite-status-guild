@@ -28,4 +28,14 @@ client.once('ready', () => {
   startStatusMonitor(client);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN).catch(err => {
+  console.error('Failed to login:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', err => {
+  console.error('Uncaught Exception thrown:', err);
+});
